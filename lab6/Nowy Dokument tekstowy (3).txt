@@ -1,0 +1,620 @@
+classdef adg_v2 < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure              matlab.ui.Figure
+        PlikMenu              matlab.ui.container.Menu
+        WczytajDaneMenu       matlab.ui.container.Menu
+        UsuPrbkiMenu          matlab.ui.container.Menu
+        ZapiszWykresMenu      matlab.ui.container.Menu
+        PomocMenu             matlab.ui.container.Menu
+        JakzaczMenu           matlab.ui.container.Menu
+        PorwnanieokienMenu    matlab.ui.container.Menu
+        AppInfoMenu           matlab.ui.container.Menu
+        GridLayout3           matlab.ui.container.GridLayout
+        TabGroup2             matlab.ui.container.TabGroup
+        RodzajeWykreswTab     matlab.ui.container.Tab
+        GridLayout5           matlab.ui.container.GridLayout
+        ListBoxWykres         matlab.ui.control.ListBox
+        OpcjewykresuTab       matlab.ui.container.Tab
+        GridLayout6           matlab.ui.container.GridLayout
+        CheckBox              matlab.ui.control.CheckBox
+        ParametryokienparametrycznychPanel  matlab.ui.container.Panel
+        GridLayout            matlab.ui.container.GridLayout
+        ChebyEditField        matlab.ui.control.NumericEditField
+        ChebyEditFieldLabel   matlab.ui.control.Label
+        TukeyEditField        matlab.ui.control.NumericEditField
+        TukeyEditFieldLabel   matlab.ui.control.Label
+        GaussEditField        matlab.ui.control.NumericEditField
+        GaussLabel            matlab.ui.control.Label
+        KaiserEditField       matlab.ui.control.NumericEditField
+        KaiserEditFieldLabel  matlab.ui.control.Label
+        TabGroup              matlab.ui.container.TabGroup
+        OknaTab               matlab.ui.container.Tab
+        GridLayout2           matlab.ui.container.GridLayout
+        ListBoxOkno           matlab.ui.control.ListBox
+        ZeropadTab            matlab.ui.container.Tab
+        GridLayout4           matlab.ui.container.GridLayout
+        ListBoxZeroPad        matlab.ui.control.ListBox
+        UyjdyskretnegouzupenieniazeramiCheckBox  matlab.ui.control.CheckBox
+        UIAxes                matlab.ui.control.UIAxes
+    end
+
+    
+    properties (Access = private)
+        N               % Liczba probek
+        n               % indeks probek
+        x               % wektor probek sygnalu
+        w               % wektor probek okna czasowego
+        Nrokna          % numer wybranego okna czasowego
+        Nrwykresu       % numer wybranego wykresu
+
+        pKaiser         %parametr okna kaisera
+        pGauss          %parametr okna gaussa
+        pTukey          %parametr okna Tukeya
+        pCheby          %parametr okna Chebysheva
+
+        padEn           % wskażnik użycia metody zero padding (0=off, 1=on)
+        padNum          % liczba zer użyta w metodzie zero padding fft
+    end
+    
+    methods (Access = private)
+        
+        function RysujWykres1(app)
+            % Metoda rysująca wykres w dziedzinie czasu
+
+            % Tworzę od nowa wektor próbek bo nie biorę próbek uzupełnienia
+            % zerami z kolejnych wykresów
+            app.n = 0:app.N-1; 
+
+            set(app.UIAxes,'YLimMode',"auto");
+            plot(app.UIAxes, app.n,app.x,'- .',app.n,app.w,'- .',app.n,app.w.*app.x,'- .',"LineWidth", 1.5,"MarkerSize",10);
+
+            kolory_linii = ["#0072BD","#77AC30","#A2142F"];
+            colororder(app.UIAxes, kolory_linii);
+        end
+        
+        function RysujWykres2(app)
+            % Metoda rysująca wykres wyniku fft w skali logarytmicznej
+
+            f=fft(app.x.*app.w, not(app.padEn)*128 + app.padEn*app.padNum);
+            df = 128/length(f);
+            app.n = 0:df:app.N-df; 
+
+            modf=abs(f)/(app.N/2);
+            set(app.UIAxes,'YLimMode',"auto")
+            plot(app.UIAxes, app.n, modf,'- .');
+        end
+
+        function RysujWykres3(app)
+            % Metoda rysująca wyniki fft przeskalowane na skalę
+            % logarytmiczną
+
+            f=fft(app.x.*app.w, not(app.padEn)*128 + app.padEn*app.padNum);
+            df = 128/length(f);
+            app.n = 0:df:app.N-df; 
+
+            modf=abs(f)/(app.N/2);
+            set(app.UIAxes,'YLimMode',"auto")
+            plot(app.UIAxes, app.n,20*log10(modf),'- .',"Color","#77AC30","LineWidth", 1);
+        end
+
+        function RysujWykres4(app)
+            % Metoda teoretycznie rysująca fazę ale nikt nie wie na pewno
+            % bo faza jest dziwna :p
+
+            f=fft(app.x.*app.w, not(app.padEn)*app.N + app.padEn*app.padNum);
+            df = 128/length(f);
+            app.n = 0:df:app.N-df;  
+
+            modf=abs(f)/(app.N/2);
+            alfa = angle(f);
+            idx = modf<0.00001;
+            alfa(idx) = NaN;
+
+            set(app.UIAxes,'YLimMode',"auto")
+            plot(app.UIAxes, app.n, alfa ,'- .',"Color","#A2142F","LineWidth", 1);
+        end
+        
+        function RysujWykres(app)
+            % Wybór pokazywanego wykresu
+
+            clear f;    % Próba naprawy błędu przepełnienia pamięci przy zmianach ilości zer, niewiadomo czy skuteczna 
+            switch(app.Nrwykresu)
+                case 1
+                    RysujWykres1(app);
+                case 2
+                    RysujWykres2(app);
+                case 3
+                    RysujWykres3(app);
+                case 4
+                    RysujWykres4(app);
+            end
+        end
+        
+        function ObliczOkno(app)
+            % Metoda licząca okna, duh
+
+            app.KaiserEditField.Enable = "off";
+            app.GaussEditField.Enable = "off";
+            app.TukeyEditField.Enable = "off";
+            app.ChebyEditField.Enable = "off";
+            
+            switch(app.Nrokna)
+                case 1
+                    app.w = rectwin(app.N);
+                    app.w = app.w';
+                case 2
+                    app.w = 2.*hann(app.N, "periodic");
+                    app.w = app.w';
+                case 3
+                    app.w = 2.*triang(app.N+1);
+                    app.w(length(app.w))=[];
+                    app.w = app.w';
+                case 4 
+                    app.w = 1.8519.*hamming(app.N, "periodic");
+                    app.w = app.w';
+                case 5
+                    app.w = 2.3810.*blackman(app.N, "periodic");
+                    app.w = app.w';
+                case 6
+                    app.KaiserEditField.Enable = "on";
+                    app.w = kaiser(app.N+1, app.pKaiser);
+                    app.w(length(app.w))=[];
+                    normalizujOkno(app);
+                case 7
+                    app.GaussEditField.Enable = "on";
+                    app.w = gausswin(app.N+1, app.pGauss);
+                    app.w(length(app.w))=[];
+                    normalizujOkno(app);
+                case 8
+                    app.TukeyEditField.Enable = "on";
+                    app.w = tukeywin(app.N+1, app.pTukey);
+                    app.w(length(app.w))=[];
+                    normalizujOkno(app);
+                case 9
+                    app.ChebyEditField.Enable = "on";
+                    app.w = chebwin(app.N+1, app.pCheby);
+                    app.w(length(app.w))=[];
+                    normalizujOkno(app);
+            end
+        end
+
+
+        function normalizujOkno(app)
+            % Metoda "normalizacji" okien: 
+            % Oblicza sumę wszystkich próbek okna, porównuje z sumą dla
+            % okna prostokątnego i skaluje próbki tak żeby ich suma była
+            % równa jak dla prostokątnego. Dlaczego? Dużo funkcji w matlab
+            % generuje okna o max amplitudzie 1 a to oznacza tłumienie
+            % sygnału.
+
+            app.w = app.w';
+            sum = 0;
+            for i = 1:length(app.w)
+                sum = sum + app.w(i);
+            end
+            
+            multiplier = 128/sum;
+            app.w = multiplier.*app.w;
+        end
+    end
+    
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Code that executes after component creation
+        function ad_init(app)
+            % Inicjalizacja zmiennych wartościami początkowymi
+
+            app.N=128;
+            app.n=0:app.N-1;
+            app.x=zeros(1,app.N);
+            app.w=ones(1,app.N);
+            app.Nrokna=1;
+            app.Nrwykresu=1;
+            RysujWykres1(app);
+
+            app.KaiserEditField.Enable = "off";
+            app.GaussEditField.Enable = "off";
+            app.TukeyEditField.Enable = "off";
+            app.ChebyEditField.Enable = "off";
+            app.pKaiser = 0.5;
+            app.pGauss = 2.5;
+            app.pTukey = 0.5;
+            app.pCheby = 100;
+
+            app.padEn = 0;
+            app.padNum = 128;
+        end
+
+        % Value changed function: ListBoxOkno
+        function ad_wybor_okna(app, event)
+            app.Nrokna = app.ListBoxOkno.Value;
+            ObliczOkno(app);
+            RysujWykres(app);
+        end
+
+        % Value changed function: ListBoxWykres
+        function ad_wybor_wykresu(app, event)
+            app.Nrwykresu = app.ListBoxWykres.Value;
+            RysujWykres(app);
+        end
+
+        % Value changed function: KaiserEditField
+        function KaiserEditFieldValueChanged(app, event)
+            app.pKaiser = app.KaiserEditField.Value;
+            ObliczOkno(app);
+            RysujWykres(app);
+        end
+
+        % Value changed function: GaussEditField
+        function GaussEditFieldValueChanged(app, event)
+            app.pGauss = app.GaussEditField.Value;
+            ObliczOkno(app);
+            RysujWykres(app);            
+        end
+
+        % Value changed function: TukeyEditField
+        function TukeyEditFieldValueChanged(app, event)
+            app.pTukey = app.TukeyEditField.Value;
+            ObliczOkno(app);
+            RysujWykres(app);  
+        end
+
+        % Value changed function: ChebyEditField
+        function ChebyEditFieldValueChanged(app, event)
+            app.pCheby = app.ChebyEditField.Value;
+            ObliczOkno(app);
+            RysujWykres(app);
+        end
+
+        % Value changed function: ListBoxZeroPad
+        function ListBoxZeroPadValueChanged(app, event)
+            app.padNum = app.ListBoxZeroPad.Value;
+
+            ObliczOkno(app);
+            RysujWykres(app);
+        end
+
+        % Value changed function: UyjdyskretnegouzupenieniazeramiCheckBox
+        function UyjdyskretnegouzupenieniazeramiCheckBoxValueChanged(app, event)
+            app.padEn = app.UyjdyskretnegouzupenieniazeramiCheckBox.Value;
+            
+            ObliczOkno(app);
+            RysujWykres(app);
+        end
+
+        % Menu selected function: WczytajDaneMenu
+        function WczytajDaneMenuSelected(app, event)
+            % Metoda od prowadzącego, pewnie kopia 1:1 z internetu. Pozwala
+            % na wczytanie ciągu próbek do analizy
+            
+            [st1,st2]=uigetfile('*.mat','Czytaj dane');
+            if st1~=0
+                eval(['load ''' [st2,st1] ''' -mat x']);
+                app.x=x;
+            end
+
+            % Próba umożliwienia analizy sygnałów o różnej długości, nie
+            % wypróbowana
+            %app.N = (length(app.x));
+            RysujWykres(app);
+        end
+
+        % Menu selected function: ZapiszWykresMenu
+        function ZapiszWykresMenuSelected(app, event)
+            % Metoda "pożyczona" z internetu ale służy do zapisywania
+            % wykresów pokazanych na plocie w wielu fajnych formatach
+            
+            filter = ["*.jpg";"*.png";"*.tif";"*.pdf";"*.eps"];
+            [filename,filepath] = uiputfile(filter);
+            if ischar(filename)
+                exportgraphics(app.UIAxes,[filepath filename]);
+            end
+        end
+
+        % Menu selected function: UsuPrbkiMenu
+        function UsuPrbkiMenuSelected(app, event)
+            % Metoda usuwająca wczytane próbki a tak naprawdę zastępująca
+            % je ciągiem zer
+            
+            app.N=128;
+            app.n=0:app.N-1;
+            app.x=zeros(1,app.N);
+            app.w=ones(1,app.N);
+            app.Nrokna=1;
+            app.Nrwykresu=1;
+            RysujWykres1(app);
+        end
+
+        % Menu selected function: PorwnanieokienMenu
+        function PorwnanieokienMenuSelected(app, event)
+            % Metoda otwierająca aplikację pomocy z porównaniem wykresów
+
+            winHelpWin(app, app.N, app.pKaiser, app.pGauss, app.pTukey, app.pCheby);
+        end
+
+        % Menu selected function: JakzaczMenu
+        function JakzaczMenuSelected(app, event)
+            % Metoda pokazująca pliczek pomocy "Jak zacząć"
+            
+            txt = readlines('help_how2start.txt');
+            msgbox(txt,"Help","help");
+        end
+
+        % Menu selected function: AppInfoMenu
+        function AppInfoMenuSelected(app, event)
+            txt = readlines('help_appInfo.txt');
+            msgbox(txt,"App Info","help");
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 1120 607];
+            app.UIFigure.Name = 'MATLAB App';
+
+            % Create PlikMenu
+            app.PlikMenu = uimenu(app.UIFigure);
+            app.PlikMenu.Text = '  Plik  ';
+
+            % Create WczytajDaneMenu
+            app.WczytajDaneMenu = uimenu(app.PlikMenu);
+            app.WczytajDaneMenu.MenuSelectedFcn = createCallbackFcn(app, @WczytajDaneMenuSelected, true);
+            app.WczytajDaneMenu.Accelerator = 'd';
+            app.WczytajDaneMenu.Text = 'Wczytaj Dane';
+
+            % Create UsuPrbkiMenu
+            app.UsuPrbkiMenu = uimenu(app.PlikMenu);
+            app.UsuPrbkiMenu.MenuSelectedFcn = createCallbackFcn(app, @UsuPrbkiMenuSelected, true);
+            app.UsuPrbkiMenu.Accelerator = 'x';
+            app.UsuPrbkiMenu.Text = 'Usuń Próbki';
+
+            % Create ZapiszWykresMenu
+            app.ZapiszWykresMenu = uimenu(app.PlikMenu);
+            app.ZapiszWykresMenu.MenuSelectedFcn = createCallbackFcn(app, @ZapiszWykresMenuSelected, true);
+            app.ZapiszWykresMenu.Accelerator = 's';
+            app.ZapiszWykresMenu.Text = 'Zapisz Wykres';
+
+            % Create PomocMenu
+            app.PomocMenu = uimenu(app.UIFigure);
+            app.PomocMenu.Text = '  Pomoc  ';
+
+            % Create JakzaczMenu
+            app.JakzaczMenu = uimenu(app.PomocMenu);
+            app.JakzaczMenu.MenuSelectedFcn = createCallbackFcn(app, @JakzaczMenuSelected, true);
+            app.JakzaczMenu.Text = 'Jak zacząć?';
+
+            % Create PorwnanieokienMenu
+            app.PorwnanieokienMenu = uimenu(app.PomocMenu);
+            app.PorwnanieokienMenu.MenuSelectedFcn = createCallbackFcn(app, @PorwnanieokienMenuSelected, true);
+            app.PorwnanieokienMenu.Accelerator = 'h';
+            app.PorwnanieokienMenu.Text = 'Porównanie okien';
+
+            % Create AppInfoMenu
+            app.AppInfoMenu = uimenu(app.PomocMenu);
+            app.AppInfoMenu.MenuSelectedFcn = createCallbackFcn(app, @AppInfoMenuSelected, true);
+            app.AppInfoMenu.Text = 'App Info';
+
+            % Create GridLayout3
+            app.GridLayout3 = uigridlayout(app.UIFigure);
+            app.GridLayout3.ColumnWidth = {'1x', '1x', 300};
+            app.GridLayout3.RowHeight = {'1x', '1x', '1x', '1x', '1x', '1x', '1x', '1x', 50, 50};
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.GridLayout3);
+            title(app.UIAxes, 'Title')
+            xlabel(app.UIAxes, 'X')
+            ylabel(app.UIAxes, 'Y')
+            zlabel(app.UIAxes, 'Z')
+            app.UIAxes.Layout.Row = [1 8];
+            app.UIAxes.Layout.Column = [1 2];
+
+            % Create TabGroup
+            app.TabGroup = uitabgroup(app.GridLayout3);
+            app.TabGroup.Layout.Row = [1 6];
+            app.TabGroup.Layout.Column = 3;
+
+            % Create OknaTab
+            app.OknaTab = uitab(app.TabGroup);
+            app.OknaTab.Title = 'Okna';
+
+            % Create GridLayout2
+            app.GridLayout2 = uigridlayout(app.OknaTab);
+            app.GridLayout2.ColumnWidth = {'1x'};
+            app.GridLayout2.RowHeight = {'1x'};
+
+            % Create ListBoxOkno
+            app.ListBoxOkno = uilistbox(app.GridLayout2);
+            app.ListBoxOkno.Items = {'Okno prostokątne', 'Okon Hanna', 'Okon trójkątne', 'Okno Hamminga', 'Okno Blackmana', '[p]Okno Kaisera', '[p]Okno Gaussa', '[p]Okno Tukeya', '[p]Okno Chebysheva'};
+            app.ListBoxOkno.ItemsData = [1 2 3 4 5 6 7 8 9];
+            app.ListBoxOkno.ValueChangedFcn = createCallbackFcn(app, @ad_wybor_okna, true);
+            app.ListBoxOkno.FontSize = 14;
+            app.ListBoxOkno.Layout.Row = 1;
+            app.ListBoxOkno.Layout.Column = 1;
+            app.ListBoxOkno.Value = 1;
+
+            % Create ZeropadTab
+            app.ZeropadTab = uitab(app.TabGroup);
+            app.ZeropadTab.Title = 'Zero pad';
+
+            % Create GridLayout4
+            app.GridLayout4 = uigridlayout(app.ZeropadTab);
+            app.GridLayout4.ColumnWidth = {'1x'};
+            app.GridLayout4.RowHeight = {'1x', '1x', '1x', '1x', '1x'};
+
+            % Create UyjdyskretnegouzupenieniazeramiCheckBox
+            app.UyjdyskretnegouzupenieniazeramiCheckBox = uicheckbox(app.GridLayout4);
+            app.UyjdyskretnegouzupenieniazeramiCheckBox.ValueChangedFcn = createCallbackFcn(app, @UyjdyskretnegouzupenieniazeramiCheckBoxValueChanged, true);
+            app.UyjdyskretnegouzupenieniazeramiCheckBox.Text = 'Użyj dyskretnego uzupełnienia zerami';
+            app.UyjdyskretnegouzupenieniazeramiCheckBox.FontSize = 14;
+            app.UyjdyskretnegouzupenieniazeramiCheckBox.Layout.Row = 1;
+            app.UyjdyskretnegouzupenieniazeramiCheckBox.Layout.Column = 1;
+
+            % Create ListBoxZeroPad
+            app.ListBoxZeroPad = uilistbox(app.GridLayout4);
+            app.ListBoxZeroPad.Items = {'128', '256', '512', '1024', '2048', '4096', '8192', '16384', '32768', '65536'};
+            app.ListBoxZeroPad.ItemsData = [128 256 512 1024 2048 4096 8192 16384 32768 65536];
+            app.ListBoxZeroPad.ValueChangedFcn = createCallbackFcn(app, @ListBoxZeroPadValueChanged, true);
+            app.ListBoxZeroPad.FontSize = 14;
+            app.ListBoxZeroPad.Layout.Row = [2 5];
+            app.ListBoxZeroPad.Layout.Column = 1;
+            app.ListBoxZeroPad.Value = 128;
+
+            % Create ParametryokienparametrycznychPanel
+            app.ParametryokienparametrycznychPanel = uipanel(app.GridLayout3);
+            app.ParametryokienparametrycznychPanel.Title = 'Parametry okien parametrycznych';
+            app.ParametryokienparametrycznychPanel.Layout.Row = [9 10];
+            app.ParametryokienparametrycznychPanel.Layout.Column = [1 2];
+
+            % Create GridLayout
+            app.GridLayout = uigridlayout(app.ParametryokienparametrycznychPanel);
+            app.GridLayout.ColumnWidth = {'1x', '1x', '1x', '1x'};
+            app.GridLayout.RowHeight = {'1x', '1x', '1x'};
+
+            % Create KaiserEditFieldLabel
+            app.KaiserEditFieldLabel = uilabel(app.GridLayout);
+            app.KaiserEditFieldLabel.HorizontalAlignment = 'center';
+            app.KaiserEditFieldLabel.VerticalAlignment = 'top';
+            app.KaiserEditFieldLabel.FontSize = 14;
+            app.KaiserEditFieldLabel.Layout.Row = 1;
+            app.KaiserEditFieldLabel.Layout.Column = 1;
+            app.KaiserEditFieldLabel.Text = 'Kaiser:';
+
+            % Create KaiserEditField
+            app.KaiserEditField = uieditfield(app.GridLayout, 'numeric');
+            app.KaiserEditField.ValueChangedFcn = createCallbackFcn(app, @KaiserEditFieldValueChanged, true);
+            app.KaiserEditField.FontSize = 24;
+            app.KaiserEditField.Layout.Row = [2 3];
+            app.KaiserEditField.Layout.Column = 1;
+            app.KaiserEditField.Value = 0.5;
+
+            % Create GaussLabel
+            app.GaussLabel = uilabel(app.GridLayout);
+            app.GaussLabel.HorizontalAlignment = 'center';
+            app.GaussLabel.VerticalAlignment = 'top';
+            app.GaussLabel.FontSize = 14;
+            app.GaussLabel.Layout.Row = 1;
+            app.GaussLabel.Layout.Column = 2;
+            app.GaussLabel.Text = 'Gauss:';
+
+            % Create GaussEditField
+            app.GaussEditField = uieditfield(app.GridLayout, 'numeric');
+            app.GaussEditField.ValueChangedFcn = createCallbackFcn(app, @GaussEditFieldValueChanged, true);
+            app.GaussEditField.FontSize = 24;
+            app.GaussEditField.Layout.Row = [2 3];
+            app.GaussEditField.Layout.Column = 2;
+            app.GaussEditField.Value = 2.5;
+
+            % Create TukeyEditFieldLabel
+            app.TukeyEditFieldLabel = uilabel(app.GridLayout);
+            app.TukeyEditFieldLabel.HorizontalAlignment = 'center';
+            app.TukeyEditFieldLabel.VerticalAlignment = 'top';
+            app.TukeyEditFieldLabel.FontSize = 14;
+            app.TukeyEditFieldLabel.Layout.Row = 1;
+            app.TukeyEditFieldLabel.Layout.Column = 3;
+            app.TukeyEditFieldLabel.Text = 'Tukey:';
+
+            % Create TukeyEditField
+            app.TukeyEditField = uieditfield(app.GridLayout, 'numeric');
+            app.TukeyEditField.ValueChangedFcn = createCallbackFcn(app, @TukeyEditFieldValueChanged, true);
+            app.TukeyEditField.FontSize = 24;
+            app.TukeyEditField.Layout.Row = [2 3];
+            app.TukeyEditField.Layout.Column = 3;
+            app.TukeyEditField.Value = 0.5;
+
+            % Create ChebyEditFieldLabel
+            app.ChebyEditFieldLabel = uilabel(app.GridLayout);
+            app.ChebyEditFieldLabel.HorizontalAlignment = 'center';
+            app.ChebyEditFieldLabel.VerticalAlignment = 'top';
+            app.ChebyEditFieldLabel.FontSize = 14;
+            app.ChebyEditFieldLabel.Layout.Row = 1;
+            app.ChebyEditFieldLabel.Layout.Column = 4;
+            app.ChebyEditFieldLabel.Text = 'Cheby:';
+
+            % Create ChebyEditField
+            app.ChebyEditField = uieditfield(app.GridLayout, 'numeric');
+            app.ChebyEditField.ValueChangedFcn = createCallbackFcn(app, @ChebyEditFieldValueChanged, true);
+            app.ChebyEditField.FontSize = 24;
+            app.ChebyEditField.Layout.Row = [2 3];
+            app.ChebyEditField.Layout.Column = 4;
+            app.ChebyEditField.Value = 100;
+
+            % Create TabGroup2
+            app.TabGroup2 = uitabgroup(app.GridLayout3);
+            app.TabGroup2.Layout.Row = [7 10];
+            app.TabGroup2.Layout.Column = 3;
+
+            % Create RodzajeWykreswTab
+            app.RodzajeWykreswTab = uitab(app.TabGroup2);
+            app.RodzajeWykreswTab.Title = 'Rodzaje Wykresów';
+
+            % Create GridLayout5
+            app.GridLayout5 = uigridlayout(app.RodzajeWykreswTab);
+            app.GridLayout5.ColumnWidth = {'1x'};
+            app.GridLayout5.RowHeight = {'2x'};
+
+            % Create ListBoxWykres
+            app.ListBoxWykres = uilistbox(app.GridLayout5);
+            app.ListBoxWykres.Items = {'Wykres w dziedzinie czasu', 'Ch-ka amplitudowa', 'Ch-ka amplitudowa w dB', 'Ch-ka fazowa'};
+            app.ListBoxWykres.ItemsData = [1 2 3 4];
+            app.ListBoxWykres.ValueChangedFcn = createCallbackFcn(app, @ad_wybor_wykresu, true);
+            app.ListBoxWykres.FontSize = 14;
+            app.ListBoxWykres.Layout.Row = 1;
+            app.ListBoxWykres.Layout.Column = 1;
+            app.ListBoxWykres.Value = 1;
+
+            % Create OpcjewykresuTab
+            app.OpcjewykresuTab = uitab(app.TabGroup2);
+            app.OpcjewykresuTab.Title = 'Opcje wykresu';
+
+            % Create GridLayout6
+            app.GridLayout6 = uigridlayout(app.OpcjewykresuTab);
+            app.GridLayout6.RowHeight = {'1x', '1x', '1x'};
+
+            % Create CheckBox
+            app.CheckBox = uicheckbox(app.GridLayout6);
+            app.CheckBox.Layout.Row = 1;
+            app.CheckBox.Layout.Column = 1;
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = adg_v2
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            % Execute the startup function
+            runStartupFcn(app, @ad_init)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end

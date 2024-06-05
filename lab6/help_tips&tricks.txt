@@ -1,0 +1,24 @@
+Okna mają podstawowe parametry:
+- Szerokość listka głównego, liczona w stosunku względem szerokości dla okna prostokąnego
+- Tłumienie listków bocznych, liczone w dB między szczytem listka głównego a szczytem pierwszego listka bocznego
+- Nachylenie listków bocznych, liczone w dB/oct zmiana wysokości kolejnych listków bocznych 
+- Szum
+
+Szerokość i tłumienie są ze sobą powiązane: wraz ze zwiększeniem tłumienia rośnie szerokośc listka głównego. Prowadzi to do problemów z dokładnym odczytaniem częstotliwości wykresu. Jest powiązane z "płynnością" przejścia okna do zera na jego krawędziach. Im łagodniejszze zejście, tym lepsze tłumienie ale tym szerszy listek główny.
+
+Nachylenie zależne jest od nieciągłości okna: Okno nieciągłe w dziedzinie częstotliwości wykaże spadek -6dB/oct (prostokątne), nieciągłe w pierwszej pochodnej: -12dB (trójkątne), nieciągłe w drugiej pochodnej: -18dB (cos(a))itd.
+
+Co należy rozwarzyć przy wyborze okna:
+- Jeżeli sygnał zawiera dużą ilość szumu użyj okna, które jest jak najszersze w dziedzinie czasu.
+- Jeżeli sygał zawiera składowe występujące blisko siebie, użyj takiego okna aby w odległości bins między szczytami zastosowane okno miało jak najniższą wartośc listka bocznego. Najlepiej użyć okna parametrycznego i dobrać jego parametr tak, aby trafić w obszar pomiędzy listkami bocznymi gdzie tłumienie jest maksymalne
+- Jeżeli sygnał zawiera składowe odległe od siebie należy użyć okna o szerokim listku główym np. Flattop, aby poprawić dokładność odczytu amplitudy sygnału.
+- Ogólnie rzecz biorąc, okno Hanninga (Hann) jest satysfakcjonujące w 95 procentach przypadków. Ma dobrą rozdzielczość częstotliwości i zredukowane wycieki spektralne. Jeśli nie znasz charakteru sygnału, ale chcesz zastosować okno wygładzające, zacznij od okna Hann.
+
+
+Oddalone zakłócenia: Okno Blackmana-Harrisa, Okno Nuttalla
+Bliskie zakłócenia: Okno Kaisera, Okno Dolph-Chebysheva
+Wysoka rozdzielczość spektralna: Okno Rectangularne, Okno Sinc
+Dokładność amplitudy: Okno Hanninga, Okno Hamming
+Szerokopasmowe widmo: Okno Rectangularne
+Uniwersalne okno: Okno Hanninga
+

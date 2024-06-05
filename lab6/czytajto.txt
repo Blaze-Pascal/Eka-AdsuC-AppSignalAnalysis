@@ -1,0 +1,21 @@
+Autor: Błażej Chodorowski 263671
+
+Funkcje dodatkowe aplikacji głównej:
+- Dodatkowe okna parametryczne i nieparametryczne
+- Okno pozostaje skupione po wczytaniu próbek, wcześniej się minimalizowało
+- Zaspisywanie wykresu jako zdjęcia lub pdf
+- Kasowanie wczytanych próbek
+- Dodawanie/usuwanie siatki i legendy z wykresu 
+- [!] Automatyczne wskazywanie maksimów lokalnych
+- Okno pomocy "Jak zacząć" tłumaczące używanie aplikacji
+- Okno "App Info" podające podstawowe informacje o autorze i działaniu aplikacji
+- Automatyczna zmiana wektorów kolumnowch na wierszowe i obsługa wektorów o różnej długości
+
+Funkcje dodatkowe aplikacji pomocniczej:
+- osobna aplikacja
+- włączanie/wyłączanie wykresów w oknie pomocy
+- wskaźnik pomagający określić okno o najniższej amplitudzie w danym punkcie
+- pobieranie parametrów okien z aplikacji głównej podczas startu aplikacji pomocy
+- tabela parametrów okien z sortowaniem (wczytanie z pliku xls) (wymaga uzupełnienia)
+- wskazówki dotyczące wyboru okien
+

@@ -1,0 +1,20 @@
+Jeżeli pobrałeś tą aplikację i nie jesteś mną, to pewnie zadajesz sobie pytanie: Jak się z tego kożysta?
+Sprawa jest prosta.
+
+Aplikacja służy do:
+1) Podglądu sygnałów w dziedzinie czasu
+2) Wyznaczania parametrów składowych częstotlwiościowych
+3) Podglącu fazy sygnału
+
+Żeby użyć tych fanastycznych funkcji należy:
+1) Wczytać próbki sygnału. "Plik" > "Wczytaj próbki" (Ogranicz się do równo 128 próbek. Inaczej program może nie działać poprawnie)
+2) Wybierz odpowiednie okno danych w zakładce "Okna"
+3) W zależności od zadania wybierz typ wykresu, który chcesz zobaczyć z okna "Rodzaje wykresów".
+	3.1) Wybierz "Wykres w dziedzinie czsu". Zobaczysz na nim przebieg sygnału w dziedzinie czsu, kształt zastosowanego okna i sygnał po użyciu na nim 	okna.
+	3.2) Wybierz "Ch-ka amplitudowa( w dB)". Zobaczysz wykres sygnału w dziedzinie częstotliwości w skali lniowej lub logarytmicznej. Aby precyzyjnie 	odczytać wartości szczytów możesz użyć "Zero pad" > "Użyj..." > Wybierz wartość uzupełnienia zerami, co zwiększy rozdzielczość widma. Możesz też 	użyć "Wyświetlanie" > "Szczyty" aby automatycznie zaznaczyć wszystkie wartości szczytowe w sygnale i ułatwić odczytanie wartości.
+4) Analizuj wykres używjąc nażędzi dostępnych w prawym górnym rogu okna Plot. Zmień tytuł wykresu, włącz siatkę i legendę w zakładce "Wyświetlanie". Zapisz wykres użwyając menu "Plik" > "Zapisz wykres".
+
+Nie bój się eksperymentować, najwyrzej program wyrzuci błąd xD
+W takim wypadku spróbuj ponownie, wprgram nie wprowadza permamentnych zmian w badany sygnał.
+
+Powodzenia!

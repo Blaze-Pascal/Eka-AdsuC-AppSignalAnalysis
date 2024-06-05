@@ -1,0 +1,20 @@
+===========================
+    Informacje o aplikacji
+===========================
+
+Nazwa aplikacji: 
+Aplikacja Analizy Sygnałów
+
+Autor: 
+Błażej Chodorowski (263671)
+
+Wersja: 
+1.4
+
+Data ostatniej aktualizacji:
+21.05.2024
+
+Opis:
+Aplikacja służy do zanalizy składowych częstotliwości próbek sygnału. Pozwala na zastosowanie różnych okien, wyświetlanie widma w skali liniowej oraz logarytmicznej i pokazywania fazy. Dzięki tej aplikacji można zaobserwować wpływ różnych okien na sygnał i dobrać odpowiednie okno do danych potrzeb. Aplikacja pozwala na wgranie próbek własnego sygnału oraz eksport wykresów w popularnych formatach.
+
+===========================

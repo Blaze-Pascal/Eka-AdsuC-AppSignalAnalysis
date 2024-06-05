@@ -1,0 +1,599 @@
+classdef winHelpWin < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure                matlab.ui.Figure
+        GridLayout              matlab.ui.container.GridLayout
+        TabGroup                matlab.ui.container.TabGroup
+        PorwnanieokienTab       matlab.ui.container.Tab
+        GridLayout3             matlab.ui.container.GridLayout
+        PorwnajOknaPanel        matlab.ui.container.Panel
+        GridLayout5             matlab.ui.container.GridLayout
+        OknoProstoktneCheckBox  matlab.ui.control.CheckBox
+        OknoChebyshevaCheckBox  matlab.ui.control.CheckBox
+        OknoTukeyaCheckBox      matlab.ui.control.CheckBox
+        OknoGaussaCheckBox      matlab.ui.control.CheckBox
+        OknoKaiseraCheckBox     matlab.ui.control.CheckBox
+        OknoBlackmanaCheckBox   matlab.ui.control.CheckBox
+        OknoHammingaCheckBox    matlab.ui.control.CheckBox
+        OknoTrjktneCheckBox     matlab.ui.control.CheckBox
+        OknoHannaCheckBox       matlab.ui.control.CheckBox
+        ParametryokienparametrycznychPanel  matlab.ui.container.Panel
+        GridLayout4             matlab.ui.container.GridLayout
+        ChebyEditField          matlab.ui.control.NumericEditField
+        ChebyEditFieldLabel     matlab.ui.control.Label
+        TukeyEditField          matlab.ui.control.NumericEditField
+        TukeyEditFieldLabel     matlab.ui.control.Label
+        GaussEditField          matlab.ui.control.NumericEditField
+        GaussEditFieldLabel     matlab.ui.control.Label
+        KaiserEditField         matlab.ui.control.NumericEditField
+        KaiserEditFieldLabel    matlab.ui.control.Label
+        UIAxes                  matlab.ui.control.UIAxes
+        Tabelaparametrwokien    matlab.ui.container.Tab
+        GridLayout7             matlab.ui.container.GridLayout
+        UITable                 matlab.ui.control.Table
+        WskazwkidoboruokienTab  matlab.ui.container.Tab
+        GridLayout6             matlab.ui.container.GridLayout
+        TextArea_2              matlab.ui.control.TextArea
+    end
+
+    
+    properties (Access = private)
+
+        adg_v2          % odnośnik do aplikacji nadrzędnej
+        
+        n               % wektor próbek sygnału
+        N               % ilość próbek sygnału
+        padNum          % ilość zer w metodzie zero padding
+
+        % parametry okien: 
+        pKaiser         % kaisera,
+        pGauss          % gaussa
+        pTukey          % tuckeya
+        pCheby          % Chebysheva
+        
+        % wartości próbek okien:
+        wrectwin        % prostokątnego
+        whann           % hanna
+        wtriang         % trójkątnego
+        whamming        % hamminga
+        wblackman       % blackmana
+        wkaiser         % kaisera
+        wgausswin       % gaussa
+        wtukeywin       % tukeya
+        wchebwin        % chebysheva
+    end
+    
+    methods (Access = private)
+        function wynik = normalizujOkno(app, okno)
+            % Metoda "normalizacji" okien, sprawia że pole pod wykresem
+            % każdego okna jest równa polu okna prostokątnego
+            sum = 0;
+            for i = 1:length(okno)
+                sum = sum + okno(i);
+            end
+            
+            multiplier = 128/sum;
+            wynik = multiplier.*okno;
+        end
+        
+        function aktualizujOkno(app)
+            % Metoda służąca do wyświetlenia okien odznaczonych checkboxami
+            % Sprawdza wartość zmiennej value każdego checkboxa i jeżeli
+            % jest 1 wyświetla dane okno
+
+            clf(app.UIAxes,'reset');
+            
+            % Pusty plot pozwala na poprawne działanie hold on, bez niego
+            % nakładają się kolejne wykresy na siebie w nieskończoność,
+            % dodatkowo służy za opis dla legendy :)
+            plot(app.UIAxes,0,0,"w","DisplayName","Nazwa okna:");
+
+            hold(app.UIAxes, "on");
+
+            if(app.OknoProstoktneCheckBox.Value)
+                plot(app.UIAxes, app.n, 20*log10(abs(fft(app.wrectwin, 65536)/(app.N))), '-k',"DisplayName","rectwin","LineWidth",1.5);
+            end
+            if(app.OknoHannaCheckBox.Value)
+                plot(app.UIAxes, app.n, 20*log10(abs(fft(app.whann, 65536)/(app.N))),"DisplayName","hann","LineWidth",1.5);
+            end
+            if(app.OknoTrjktneCheckBox.Value)
+                plot(app.UIAxes, app.n, 20*log10(abs(fft(app.wtriang, 65536)/(app.N))),"DisplayName","triang","LineWidth",1.5);
+            end
+            if(app.OknoHammingaCheckBox.Value)
+                plot(app.UIAxes, app.n, 20*log10(abs(fft(app.whamming, 65536)/(app.N))),"DisplayName","hamming","LineWidth",1.5);
+            end
+            if(app.OknoBlackmanaCheckBox.Value)
+                plot(app.UIAxes, app.n, 20*log10(abs(fft(app.wblackman, 65536)/(app.N))),"DisplayName","blackman","LineWidth",1.5);
+            end
+            if(app.OknoKaiseraCheckBox.Value)
+                plot(app.UIAxes, app.n, 20*log10(abs(fft(app.wkaiser, 65536)/(app.N))),"DisplayName","kaiser","LineWidth",1.5);
+            end
+            if(app.OknoGaussaCheckBox.Value)
+                plot(app.UIAxes, app.n, 20*log10(abs(fft(app.wgausswin, 65536)/(app.N))),"DisplayName","gausswin","LineWidth",1.5);
+            end
+            if(app.OknoTukeyaCheckBox.Value)
+                plot(app.UIAxes, app.n, 20*log10(abs(fft(app.wtukeywin, 65536)/(app.N))),"DisplayName","tukeywin","LineWidth",1.5);
+            end
+            if(app.OknoChebyshevaCheckBox.Value)
+                plot(app.UIAxes, app.n, 20*log10(abs(fft(app.wchebwin, 65536)/(app.N))),"DisplayName","chebwin","LineWidth",1.5);
+            end
+
+            hold(app.UIAxes, "off");
+
+            legend(app.UIAxes);
+        end
+        
+        function przeliczOkna(app)
+            % Metoda do ponownego obliczania próbek okien z nowym
+            % parametrem podanym przez urzytkownika
+            app.wkaiser = kaiser(app.N, app.pKaiser);
+            app.wkaiser = normalizujOkno(app, app.wkaiser);
+
+            app.wgausswin = gausswin(app.N, app.pGauss);
+            app.wgausswin = normalizujOkno(app, app.wgausswin);
+
+            app.wtukeywin = tukeywin(app.N, app.pTukey);
+            app.wtukeywin = normalizujOkno(app, app.wtukeywin);
+
+            app.wchebwin = chebwin(app.N, app.pCheby);
+            app.wchebwin = normalizujOkno(app, app.wchebwin);
+        end
+    end
+        
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Code that executes after component creation
+        function startupFcn(app, mainapp, N, pKaiser, pGauss, pTukey, pCheby)
+
+            % wczytanie wartości podanych z aplikacji nadrzędnej do zmiennych lokalnych aplikacji  
+            app.N = N;
+            app.pKaiser = pKaiser;
+            app.pGauss = pGauss;
+            app.pTukey = pTukey;
+            app.pCheby = pCheby;
+
+            % Inicjalizacja wszystkich wybierajek okien na naciśnięte
+            app.OknoProstoktneCheckBox.Value = true;
+            app.OknoHannaCheckBox.Value = true;
+            app.OknoTrjktneCheckBox.Value = true;
+            app.OknoHammingaCheckBox.Value = true;
+            app.OknoBlackmanaCheckBox.Value = true;
+            app.OknoKaiseraCheckBox.Value = true;
+            app.OknoGaussaCheckBox.Value = true;
+            app.OknoTukeyaCheckBox.Value = true;
+            app.OknoChebyshevaCheckBox.Value = true;
+
+            % Inicjalizacja okieniek pokazujących wartości parametrów
+            app.KaiserEditField.Value = app.pKaiser;
+            app.GaussEditField.Value = app.pGauss;
+            app.TukeyEditField.Value = app.pTukey;
+            app.ChebyEditField.Value = app.pCheby;
+            
+            % Inicjalizacja zakładki "Jak zacząć" w tekst z pliku txt
+            txt = readlines("help_tips&tricks.txt");
+            app.TextArea_2.Value = txt;
+
+            data = readtable("Dane.xls");
+            app.UITable.Data = data;
+
+            % Obliczenie wektora próbek dla sygnałów wypełnionych zerami
+            dn = app.N/65536;
+            app.n = 0:dn:app.N-dn;
+            
+            % Wstępne liczenie wartości wszystkich okien dla parametró
+            % podanych z aplikacji nadrzędnej
+            app.wrectwin = rectwin(app.N);
+            app.whann = 2.*hann(app.N, "periodic");
+            app.wtriang = 2.*triang(app.N);
+            app.whamming = 1.8519.*hamming(app.N, "periodic");
+            app.wblackman = 2.3810.*blackman(app.N, "periodic");
+            
+            app.wkaiser = kaiser(app.N, app.pKaiser);
+            app.wkaiser = normalizujOkno(app, app.wkaiser);
+
+            app.wgausswin = gausswin(app.N, app.pGauss);
+            app.wgausswin = normalizujOkno(app, app.wgausswin);
+
+            app.wtukeywin = tukeywin(app.N, app.pTukey);
+            app.wtukeywin = normalizujOkno(app, app.wtukeywin);
+
+            app.wchebwin = chebwin(app.N, app.pCheby);
+            app.wchebwin = normalizujOkno(app, app.wchebwin);
+            
+            % Wyświetlanie wszystkich okien na raz, opcja wyboru ukien w
+            % innej metodzie
+            hold(app.UIAxes, "off");
+            grid(app.UIAxes, "on");
+
+            % Liczę znormalizowane wartości /N a nie /(N/2) żeby wykresy
+            % zaczynały się w 0dB a nie w 6dB (x2 liniowo)
+            plot(app.UIAxes, ...
+                app.n, 20*log10(abs(fft(app.wrectwin, 65536)/(app.N))), '-k',...
+                app.n, 20*log10(abs(fft(app.whann, 65536)/(app.N))),...
+                app.n, 20*log10(abs(fft(app.wtriang, 65536)/(app.N))), ...
+                app.n, 20*log10(abs(fft(app.whamming, 65536)/(app.N))), ...
+                app.n, 20*log10(abs(fft(app.wblackman, 65536)/(app.N))), ...
+                app.n, 20*log10(abs(fft(app.wkaiser, 65536)/(app.N))), ...
+                app.n, 20*log10(abs(fft(app.wgausswin, 65536)/(app.N))), ...
+                app.n, 20*log10(abs(fft(app.wtukeywin, 65536)/(app.N))), ...
+                app.n, 20*log10(abs(fft(app.wchebwin, 65536)/(app.N))), ...
+                "LineWidth", 1.5 );
+            
+            % Ograniczenie zakresu osi żeby nie pokazywać całego wykresu
+            xlim(app.UIAxes, [0,20]);
+            ylim(app.UIAxes, [-120,10]);
+            app.UIAxes.XTick = 0:1:20;
+            app.UIAxes.YTick = -300:6:10;
+            
+            legend(app.UIAxes,{'rectwin','hann','triang','hamming','blackman','kaiser','gausswin','tukeywin','chebwin'});
+
+            % Inicjalizacja odnośnika do głównej aplikacji 
+            app.adg_v2 = mainapp;
+        end
+
+        % Value changed function: OknoProstoktneCheckBox
+        function OknoProstoktneCheckBoxValueChanged(app, event)
+            % Pamiętać o średniku na końcu, inaczej otwiera zewnetrznego
+            % plota dodatkowo lol
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: OknoHannaCheckBox
+        function OknoHannaCheckBoxValueChanged(app, event)
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: OknoTrjktneCheckBox
+        function OknoTrjktneCheckBoxValueChanged(app, event)
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: OknoHammingaCheckBox
+        function OknoHammingaCheckBoxValueChanged(app, event)
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: OknoBlackmanaCheckBox
+        function OknoBlackmanaCheckBoxValueChanged(app, event)
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: OknoKaiseraCheckBox
+        function OknoKaiseraCheckBoxValueChanged(app, event)
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: OknoGaussaCheckBox
+        function OknoGaussaCheckBoxValueChanged(app, event)
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: OknoTukeyaCheckBox
+        function OknoTukeyaCheckBoxValueChanged(app, event)
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: OknoChebyshevaCheckBox
+        function OknoChebyshevaCheckBoxValueChanged(app, event)
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: ChebyEditField
+        function ChebyEditFieldValueChanged(app, event)
+            app.pCheby = app.ChebyEditField.Value;
+            przeliczOkna(app);
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: TukeyEditField
+        function TukeyEditFieldValueChanged(app, event)
+            app.pTukey = app.TukeyEditField.Value;
+            przeliczOkna(app);
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: GaussEditField
+        function GaussEditFieldValueChanged(app, event)
+            app.pGauss = app.GaussEditField.Value;
+            przeliczOkna(app);
+            aktualizujOkno(app);
+        end
+
+        % Value changed function: KaiserEditField
+        function KaiserEditFieldValueChanged(app, event)
+            app.pKaiser = app.KaiserEditField.Value;
+            przeliczOkna(app);
+            aktualizujOkno(app);
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 792 579];
+            app.UIFigure.Name = 'MATLAB App';
+
+            % Create GridLayout
+            app.GridLayout = uigridlayout(app.UIFigure);
+            app.GridLayout.ColumnWidth = {'1x', '1x', '1x', '1x'};
+            app.GridLayout.RowHeight = {'1x', '1x', '1x', '1x', '1x', '1x', '1x', '1x'};
+
+            % Create TabGroup
+            app.TabGroup = uitabgroup(app.GridLayout);
+            app.TabGroup.Layout.Row = [1 8];
+            app.TabGroup.Layout.Column = [1 4];
+
+            % Create PorwnanieokienTab
+            app.PorwnanieokienTab = uitab(app.TabGroup);
+            app.PorwnanieokienTab.Title = 'Porównanie okien';
+
+            % Create GridLayout3
+            app.GridLayout3 = uigridlayout(app.PorwnanieokienTab);
+            app.GridLayout3.ColumnWidth = {'1x', '1x', 200};
+            app.GridLayout3.RowHeight = {'1x', '1x', '1x', '1x', '1x', '1x', 50, 50};
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.GridLayout3);
+            title(app.UIAxes, 'Title')
+            xlabel(app.UIAxes, 'X')
+            ylabel(app.UIAxes, 'Y')
+            zlabel(app.UIAxes, 'Z')
+            app.UIAxes.Layout.Row = [1 6];
+            app.UIAxes.Layout.Column = [1 2];
+
+            % Create ParametryokienparametrycznychPanel
+            app.ParametryokienparametrycznychPanel = uipanel(app.GridLayout3);
+            app.ParametryokienparametrycznychPanel.Title = 'Parametry okien parametrycznych';
+            app.ParametryokienparametrycznychPanel.Layout.Row = [7 8];
+            app.ParametryokienparametrycznychPanel.Layout.Column = [1 2];
+
+            % Create GridLayout4
+            app.GridLayout4 = uigridlayout(app.ParametryokienparametrycznychPanel);
+            app.GridLayout4.ColumnWidth = {'1x', '1x', '1x', '1x'};
+            app.GridLayout4.RowHeight = {'1x', '1x', '1x'};
+
+            % Create KaiserEditFieldLabel
+            app.KaiserEditFieldLabel = uilabel(app.GridLayout4);
+            app.KaiserEditFieldLabel.HorizontalAlignment = 'center';
+            app.KaiserEditFieldLabel.VerticalAlignment = 'top';
+            app.KaiserEditFieldLabel.FontSize = 14;
+            app.KaiserEditFieldLabel.Layout.Row = 1;
+            app.KaiserEditFieldLabel.Layout.Column = 1;
+            app.KaiserEditFieldLabel.Text = 'Kaiser:';
+
+            % Create KaiserEditField
+            app.KaiserEditField = uieditfield(app.GridLayout4, 'numeric');
+            app.KaiserEditField.ValueChangedFcn = createCallbackFcn(app, @KaiserEditFieldValueChanged, true);
+            app.KaiserEditField.FontSize = 24;
+            app.KaiserEditField.Layout.Row = [2 3];
+            app.KaiserEditField.Layout.Column = 1;
+            app.KaiserEditField.Value = 0.5;
+
+            % Create GaussEditFieldLabel
+            app.GaussEditFieldLabel = uilabel(app.GridLayout4);
+            app.GaussEditFieldLabel.HorizontalAlignment = 'center';
+            app.GaussEditFieldLabel.VerticalAlignment = 'top';
+            app.GaussEditFieldLabel.FontSize = 14;
+            app.GaussEditFieldLabel.Layout.Row = 1;
+            app.GaussEditFieldLabel.Layout.Column = 2;
+            app.GaussEditFieldLabel.Text = 'Gauss:';
+
+            % Create GaussEditField
+            app.GaussEditField = uieditfield(app.GridLayout4, 'numeric');
+            app.GaussEditField.ValueChangedFcn = createCallbackFcn(app, @GaussEditFieldValueChanged, true);
+            app.GaussEditField.FontSize = 24;
+            app.GaussEditField.Layout.Row = [2 3];
+            app.GaussEditField.Layout.Column = 2;
+            app.GaussEditField.Value = 2.5;
+
+            % Create TukeyEditFieldLabel
+            app.TukeyEditFieldLabel = uilabel(app.GridLayout4);
+            app.TukeyEditFieldLabel.HorizontalAlignment = 'center';
+            app.TukeyEditFieldLabel.VerticalAlignment = 'top';
+            app.TukeyEditFieldLabel.FontSize = 14;
+            app.TukeyEditFieldLabel.Layout.Row = 1;
+            app.TukeyEditFieldLabel.Layout.Column = 3;
+            app.TukeyEditFieldLabel.Text = 'Tukey:';
+
+            % Create TukeyEditField
+            app.TukeyEditField = uieditfield(app.GridLayout4, 'numeric');
+            app.TukeyEditField.ValueChangedFcn = createCallbackFcn(app, @TukeyEditFieldValueChanged, true);
+            app.TukeyEditField.FontSize = 24;
+            app.TukeyEditField.Layout.Row = [2 3];
+            app.TukeyEditField.Layout.Column = 3;
+            app.TukeyEditField.Value = 0.5;
+
+            % Create ChebyEditFieldLabel
+            app.ChebyEditFieldLabel = uilabel(app.GridLayout4);
+            app.ChebyEditFieldLabel.HorizontalAlignment = 'center';
+            app.ChebyEditFieldLabel.VerticalAlignment = 'top';
+            app.ChebyEditFieldLabel.FontSize = 14;
+            app.ChebyEditFieldLabel.Layout.Row = 1;
+            app.ChebyEditFieldLabel.Layout.Column = 4;
+            app.ChebyEditFieldLabel.Text = 'Cheby:';
+
+            % Create ChebyEditField
+            app.ChebyEditField = uieditfield(app.GridLayout4, 'numeric');
+            app.ChebyEditField.ValueChangedFcn = createCallbackFcn(app, @ChebyEditFieldValueChanged, true);
+            app.ChebyEditField.FontSize = 24;
+            app.ChebyEditField.Layout.Row = [2 3];
+            app.ChebyEditField.Layout.Column = 4;
+            app.ChebyEditField.Value = 100;
+
+            % Create PorwnajOknaPanel
+            app.PorwnajOknaPanel = uipanel(app.GridLayout3);
+            app.PorwnajOknaPanel.Title = 'Porównaj Okna:';
+            app.PorwnajOknaPanel.Layout.Row = [1 8];
+            app.PorwnajOknaPanel.Layout.Column = 3;
+
+            % Create GridLayout5
+            app.GridLayout5 = uigridlayout(app.PorwnajOknaPanel);
+            app.GridLayout5.ColumnWidth = {'8x'};
+            app.GridLayout5.RowHeight = {'1x', '1x', '1x', '1x', '1x', '1x', '1x', '1x', '1x'};
+
+            % Create OknoHannaCheckBox
+            app.OknoHannaCheckBox = uicheckbox(app.GridLayout5);
+            app.OknoHannaCheckBox.ValueChangedFcn = createCallbackFcn(app, @OknoHannaCheckBoxValueChanged, true);
+            app.OknoHannaCheckBox.Text = 'Okno Hanna';
+            app.OknoHannaCheckBox.FontSize = 14;
+            app.OknoHannaCheckBox.Layout.Row = 2;
+            app.OknoHannaCheckBox.Layout.Column = 1;
+            app.OknoHannaCheckBox.Value = true;
+
+            % Create OknoTrjktneCheckBox
+            app.OknoTrjktneCheckBox = uicheckbox(app.GridLayout5);
+            app.OknoTrjktneCheckBox.ValueChangedFcn = createCallbackFcn(app, @OknoTrjktneCheckBoxValueChanged, true);
+            app.OknoTrjktneCheckBox.Text = 'Okno Trójkątne';
+            app.OknoTrjktneCheckBox.FontSize = 14;
+            app.OknoTrjktneCheckBox.Layout.Row = 3;
+            app.OknoTrjktneCheckBox.Layout.Column = 1;
+            app.OknoTrjktneCheckBox.Value = true;
+
+            % Create OknoHammingaCheckBox
+            app.OknoHammingaCheckBox = uicheckbox(app.GridLayout5);
+            app.OknoHammingaCheckBox.ValueChangedFcn = createCallbackFcn(app, @OknoHammingaCheckBoxValueChanged, true);
+            app.OknoHammingaCheckBox.Text = 'Okno Hamminga';
+            app.OknoHammingaCheckBox.FontSize = 14;
+            app.OknoHammingaCheckBox.Layout.Row = 4;
+            app.OknoHammingaCheckBox.Layout.Column = 1;
+            app.OknoHammingaCheckBox.Value = true;
+
+            % Create OknoBlackmanaCheckBox
+            app.OknoBlackmanaCheckBox = uicheckbox(app.GridLayout5);
+            app.OknoBlackmanaCheckBox.ValueChangedFcn = createCallbackFcn(app, @OknoBlackmanaCheckBoxValueChanged, true);
+            app.OknoBlackmanaCheckBox.Text = 'Okno Blackmana';
+            app.OknoBlackmanaCheckBox.FontSize = 14;
+            app.OknoBlackmanaCheckBox.Layout.Row = 5;
+            app.OknoBlackmanaCheckBox.Layout.Column = 1;
+            app.OknoBlackmanaCheckBox.Value = true;
+
+            % Create OknoKaiseraCheckBox
+            app.OknoKaiseraCheckBox = uicheckbox(app.GridLayout5);
+            app.OknoKaiseraCheckBox.ValueChangedFcn = createCallbackFcn(app, @OknoKaiseraCheckBoxValueChanged, true);
+            app.OknoKaiseraCheckBox.Text = 'Okno Kaisera';
+            app.OknoKaiseraCheckBox.FontSize = 14;
+            app.OknoKaiseraCheckBox.Layout.Row = 6;
+            app.OknoKaiseraCheckBox.Layout.Column = 1;
+            app.OknoKaiseraCheckBox.Value = true;
+
+            % Create OknoGaussaCheckBox
+            app.OknoGaussaCheckBox = uicheckbox(app.GridLayout5);
+            app.OknoGaussaCheckBox.ValueChangedFcn = createCallbackFcn(app, @OknoGaussaCheckBoxValueChanged, true);
+            app.OknoGaussaCheckBox.Text = 'Okno Gaussa';
+            app.OknoGaussaCheckBox.FontSize = 14;
+            app.OknoGaussaCheckBox.Layout.Row = 7;
+            app.OknoGaussaCheckBox.Layout.Column = 1;
+            app.OknoGaussaCheckBox.Value = true;
+
+            % Create OknoTukeyaCheckBox
+            app.OknoTukeyaCheckBox = uicheckbox(app.GridLayout5);
+            app.OknoTukeyaCheckBox.ValueChangedFcn = createCallbackFcn(app, @OknoTukeyaCheckBoxValueChanged, true);
+            app.OknoTukeyaCheckBox.Text = 'Okno Tukeya';
+            app.OknoTukeyaCheckBox.FontSize = 14;
+            app.OknoTukeyaCheckBox.Layout.Row = 8;
+            app.OknoTukeyaCheckBox.Layout.Column = 1;
+            app.OknoTukeyaCheckBox.Value = true;
+
+            % Create OknoChebyshevaCheckBox
+            app.OknoChebyshevaCheckBox = uicheckbox(app.GridLayout5);
+            app.OknoChebyshevaCheckBox.ValueChangedFcn = createCallbackFcn(app, @OknoChebyshevaCheckBoxValueChanged, true);
+            app.OknoChebyshevaCheckBox.Text = 'Okno Chebysheva';
+            app.OknoChebyshevaCheckBox.FontSize = 14;
+            app.OknoChebyshevaCheckBox.Layout.Row = 9;
+            app.OknoChebyshevaCheckBox.Layout.Column = 1;
+            app.OknoChebyshevaCheckBox.Value = true;
+
+            % Create OknoProstoktneCheckBox
+            app.OknoProstoktneCheckBox = uicheckbox(app.GridLayout5);
+            app.OknoProstoktneCheckBox.ValueChangedFcn = createCallbackFcn(app, @OknoProstoktneCheckBoxValueChanged, true);
+            app.OknoProstoktneCheckBox.Text = 'Okno Prostokątne';
+            app.OknoProstoktneCheckBox.FontSize = 14;
+            app.OknoProstoktneCheckBox.Layout.Row = 1;
+            app.OknoProstoktneCheckBox.Layout.Column = 1;
+            app.OknoProstoktneCheckBox.Value = true;
+
+            % Create Tabelaparametrwokien
+            app.Tabelaparametrwokien = uitab(app.TabGroup);
+            app.Tabelaparametrwokien.Title = 'Tabela parametrów okien';
+
+            % Create GridLayout7
+            app.GridLayout7 = uigridlayout(app.Tabelaparametrwokien);
+            app.GridLayout7.ColumnWidth = {'1x', '1x', '1x', '1x'};
+            app.GridLayout7.RowHeight = {'1x', '1x', '1x', '1x', '1x', '1x', '1x', '1x', '1x'};
+
+            % Create UITable
+            app.UITable = uitable(app.GridLayout7);
+            app.UITable.ColumnName = {'Okno'; 'Amplituda listka bocznego [dB]'; 'Spadek listków bocznych [dB/oct]'; 'Ekwiwalent szumu [Bins]'};
+            app.UITable.RowName = {};
+            app.UITable.ColumnSortable = [false true true true];
+            app.UITable.Layout.Row = [1 9];
+            app.UITable.Layout.Column = [1 4];
+
+            % Create WskazwkidoboruokienTab
+            app.WskazwkidoboruokienTab = uitab(app.TabGroup);
+            app.WskazwkidoboruokienTab.Title = 'Wskazówki doboru okien';
+
+            % Create GridLayout6
+            app.GridLayout6 = uigridlayout(app.WskazwkidoboruokienTab);
+            app.GridLayout6.ColumnWidth = {'1x', '1x', '1x', '1x'};
+            app.GridLayout6.RowHeight = {'1x', '1x', '1x', '1x', '1x', '1x', '1x', '1x', '1x'};
+
+            % Create TextArea_2
+            app.TextArea_2 = uitextarea(app.GridLayout6);
+            app.TextArea_2.Placeholder = 'https://youtu.be/dQw4w9WgXcQ';
+            app.TextArea_2.Layout.Row = [1 9];
+            app.TextArea_2.Layout.Column = [1 4];
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = winHelpWin(varargin)
+
+            runningApp = getRunningApp(app);
+
+            % Check for running singleton app
+            if isempty(runningApp)
+
+                % Create UIFigure and components
+                createComponents(app)
+
+                % Register the app with App Designer
+                registerApp(app, app.UIFigure)
+
+                % Execute the startup function
+                runStartupFcn(app, @(app)startupFcn(app, varargin{:}))
+            else
+
+                % Focus the running singleton app
+                figure(runningApp.UIFigure)
+
+                app = runningApp;
+            end
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end
